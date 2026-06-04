@@ -3,7 +3,6 @@ import torch
 # pyrefly: ignore [missing-import]
 import torch.nn as nn
 
-# Basic model structure
 class SimpleModel(nn.Module):
     def __init__(self):
         super(SimpleModel, self).__init__()
@@ -18,8 +17,6 @@ class SimpleModel(nn.Module):
 # Create model
 model = SimpleModel()
 
-# Model has parameters (weights)
-print(f"Parameters: {sum(p.numel() for p in model.parameters())}")
 
-torch.save(model.state_dict(), 'lessons/mod-101-foundations/04-ml-frameworks/model_complete.pth')
-
+model.load_state_dict(torch.load('lessons/mod-101-foundations/04-ml-frameworks/model_complete.pth'))
+model.eval() 
