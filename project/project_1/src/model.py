@@ -57,3 +57,21 @@ class ModelInference:
             ),
         ])  
     
+    def _load_class_labels(self) -> List[str]:
+        try:
+            class_file = "imagenet_classes.txt"
+            if os.path.exists(class_file):
+                with open(class_file, 'r') as f:
+                    return [line.strip() for line in f.readlines()]
+
+            else:
+                import urllib.request
+                url = "https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt"
+                with urllib.request.urlopen(url) as response:
+                    classes = [line.decode('utf-8').strip() for line in response]
+                return classes
+
+        except Exception as e:
+            logger.error(f"Failed to load class labels: {e}")
+            return [f"class_{i}" for i in range(1000)]        
+        
