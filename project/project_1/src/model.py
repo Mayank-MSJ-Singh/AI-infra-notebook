@@ -7,6 +7,8 @@ import io
 import logging
 import os
 
+import requests
+
 logger = logging.getLogger(__name__)
 
 class ModelInference:
@@ -135,3 +137,39 @@ class ModelInference:
         except Exception as e:
             logger.error(f"Inference failed: {e}")
             raise RuntimeError(f"Inference failed: {e}")
+
+    
+    def predict_from_url(
+        self,
+        image_url: str,
+        top_k: int = 5
+    ) -> List[Dict[str, Any]]:
+        try:
+            if not image_url:
+                raise ValueError("image_url is required")
+            
+            if not 1 <= top_k <= 10:
+                raise ValueError("top_k must be between 1 and 10")
+            
+            response = requests.get(image_url, timeout=10)
+            response.raise_for_status()
+
+            content_type = response.headers.get("Content-Type", "")
+            if not content_type.startswith("image/"):
+                raise ValueError(f"URL does not point to an image: {content_type}")
+
+            image_bytes = response.content
+
+            return self.predict(image_bytes, top_k)
+        
+        except ValueError as e:
+            logger.error(f"Invalid value: {e}")
+            raise
+
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"Invalid URL or content type: {e}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Failed to download image from URL: {e}")
+            raise RuntimeError(f"Image download failed: {e}")
