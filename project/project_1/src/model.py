@@ -91,3 +91,47 @@ class ModelInference:
         except Exception as e:
             logger.error(f"Failed to preprocess image: {e}")
             raise RuntimeError(f"Image preprocessing failed: {e}")    
+
+    def predict(
+        self,
+        image_bytes: bytes,
+        top_k: int = 5
+    ) -> List[Dict[str, Any]]:
+
+        logger.info(f"Starting prediction for {self.model_name}")
+        try:
+            if self.model is None:
+                raise RuntimeError("Model not loaded. Call load_model() first.")
+
+            if not 1 <= top_k <= 10:
+                raise ValueError("top_k must be between 1 and 10")
+
+                    # Preprocess
+            input_batch = self.preprocess_image(image_bytes)
+
+            # Inference
+            with torch.no_grad():
+                output = self.model(input_batch)
+
+            # Get probabilities
+            probabilities = torch.nn.functional.softmax(output[0], dim=0)
+
+            # Get top-k
+            top_probs, top_indices = torch.topk(probabilities, top_k)
+
+            # Format results
+            predictions = []
+            for i in range(top_k):
+                class_id = int(top_indices[i])
+                predictions.append({
+                    'class_id': class_id,
+                    'class_name': self.classes[class_id],
+                    'confidence': float(top_probs[i])
+                })
+            logger.debug(f"Running prediction with top_k={top_k}"
+
+            return predictions
+
+        except Exception as e:
+            logger.error(f"Inference failed: {e}")
+            raise RuntimeError(f"Inference failed: {e}")
