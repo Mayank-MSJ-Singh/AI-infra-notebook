@@ -173,3 +173,14 @@ class ModelInference:
         except Exception as e:
             logger.error(f"Failed to download image from URL: {e}")
             raise RuntimeError(f"Image download failed: {e}")
+
+    def get_model_info(self) -> Dict[str, Any]:
+        return {
+            'model_name': self.model_name,
+            'device': str(self.device),
+            'loaded': self.model is not None,
+            'num_classes': len(self.classes) if self.classes else 0,
+            'input_size': (224, 224),
+            'framework': 'PyTorch',
+            'version': torch.__version__
+        }
