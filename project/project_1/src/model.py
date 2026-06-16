@@ -1,0 +1,49 @@
+import torch
+import torchvision.models as models
+import torchvision.transforms as transforms
+from typing import List, Tuple, Dict, Any
+from PIL import Image
+import io
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+class ModelInference:
+
+    def __init__(self, model_name: str = "resnet18"):
+        self.model_name = model_name
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = None
+        self.preprocess = self._create_transforms()
+        self.classes = self._load_class_labels()
+
+        logger.info(f"Initialized ModelInference with {self.model_name} on {self.device}")
+
+    def load_model(self) -> None:
+        try:
+            if self.model_name == "resnet18":
+                self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+            elif self.model_name == "resnet50":
+                self.model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+            else:
+                raise ValueError(f"Unsupported model: {self.model_name}")
+        
+            self.model.eval()
+            self.model.to(self.device)
+
+            dummy_input = torch.randn(1, 3, 224, 224).to(self.device)
+            with torch.no_grad():
+                _ = self.model(dummy_input)
+            
+            logger.info(f"Model {self.model_name} loaded successfully")
+
+        except ValueError as e:
+            logger.error(f"Invalid model name: {e}")
+            raise
+
+        except Exception as e:
+            logger.error(f"Failed to load model: {e}")
+            raise RuntimeError(f"Model loading failed: {e}")
+
+    
