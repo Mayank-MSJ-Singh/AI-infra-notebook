@@ -75,3 +75,19 @@ class ModelInference:
             logger.error(f"Failed to load class labels: {e}")
             return [f"class_{i}" for i in range(1000)]        
         
+    def preprocess_image(self, image_bytes: bytes) -> torch.Tensor:
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+
+            input_tensor = self.preprocess(image)
+
+            # Add batch dimension and move to device
+            input_batch = input_tensor.unsqueeze(0).to(self.device)
+
+            return input_batch
+        except Exception as e:
+            logger.error(f"Failed to preprocess image: {e}")
+            raise RuntimeError(f"Image preprocessing failed: {e}")    
