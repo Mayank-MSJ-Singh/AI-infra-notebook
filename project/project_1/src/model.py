@@ -8,6 +8,7 @@ import logging
 import os
 
 import requests
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ class ModelInference:
                     'class_name': self.classes[class_id],
                     'confidence': float(top_probs[i])
                 })
-            logger.debug(f"Running prediction with top_k={top_k}"
+            logger.debug(f"Running prediction with top_k={top_k}")
 
             return predictions
 
@@ -184,3 +185,71 @@ class ModelInference:
             'framework': 'PyTorch',
             'version': torch.__version__
         }
+
+def load_model(
+    model_name: str = "resnet18"
+    ) -> ModelInference:
+
+        inference = ModelInference(model_name)
+        inference.load_model()
+        return inference
+
+def validate_image(image_bytes: bytes) -> bool:
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+            image.verify()
+            return True
+        except Exception:
+            return False
+
+def get_supported_models() -> List[str]:
+        return [
+            'resnet18',
+            'resnet34',
+            'resnet50',
+            'resnet101',
+            'resnet152',
+            'mobilenet_v2',
+            'efficientnet_b0'
+        ]
+
+def test_model_loading():
+        print("Testing model loading...")
+
+        model = ModelInference("resnet18")
+        model.load_model()
+
+        assert model.model is not None, "Model not loaded"
+        assert model.classes is not None, "Classes not loaded"
+
+        dummy_image = Image.fromarray(
+            np.random.randint(
+                0, 255,
+                (224, 224, 3),
+                dtype=np.uint8
+            )
+        )
+
+        buffer = io.BytesIO()
+        dummy_image.save(buffer, format="JPEG")
+        image_bytes = buffer.getvalue()
+
+        predictions = model.predict(
+            image_bytes,
+            top_k=5
+        )
+
+        assert len(predictions) == 5
+        assert all(
+            "class_name" in p
+            for p in predictions
+        )
+        assert all(
+            "confidence" in p
+            for p in predictions
+        )
+
+        print("All tests passed!")
+
+if __name__ == "__main__":
+    test_model_loading()
