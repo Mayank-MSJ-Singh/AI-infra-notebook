@@ -20,6 +20,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+request_count = Counter(
+    'api_requests_total',
+    'Total API requests',
+    ['endpoint', 'method', 'status_code']
+)
+
+request_duration = Histogram(
+    'api_request_duration_seconds',
+    'Request duration in seconds',
+    ['endpoint', 'method'],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]
+)
 
 class PredictionRequest(BaseModel):
     image_url: Optional[str] = None
@@ -60,6 +72,26 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down ML Model Serving API...")
+
+
+@app.middleware("http")
+async def track_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    logger.info(f"Request {request.method} {request.url}")
+
+    request_count.labels(
+        endpoint = request.url.path,
+        method=request.method,
+        status_code=response.status_code
+    ).inc()
+
+    request_duration.labels(
+        endpoint = request.url.path,
+        method=request.method
+    ).observe(duration)
+    return response
     
 
 
