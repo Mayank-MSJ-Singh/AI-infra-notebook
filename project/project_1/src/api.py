@@ -15,6 +15,13 @@ from torchvision import transforms
 
 import torch.nn.functional as F
 
+from request import Response
+
+import torch
+
+import uvicorn
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -170,7 +177,14 @@ async def predict(file: UploadFile = File(...), top_k: int = 5, threshold: float
         logger.error(f"Prediction error: {e}")
         raise HTTPException(500, "Inference failed")
 
+@app.get("/metrics")
+async def metrics():
+    metrics_data = generate_latest()
 
+    return Response(
+        content=metrics_data,
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 
 
@@ -216,3 +230,13 @@ def get_class_name(class_id: int) -> str:
         classes = [line.strip() for line in f.readlines()]
 
     return classes[class_id]
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "api:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,  # Auto-reload on code changes
+        log_level="info"
+    )
