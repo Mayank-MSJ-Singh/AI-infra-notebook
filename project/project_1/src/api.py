@@ -9,6 +9,11 @@ from .model import ModelInference, load_model
 
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
+from PIL import Image
+import io
+from torchvision import transforms
+
+import torch.nn.functional as F
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,6 +38,19 @@ request_duration = Histogram(
     buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]
 )
 
+prediction_count = Counter(
+    "api_prediction_count_total",
+    "Total prediction requests",
+    ["status_code", "success"]
+)
+
+error_count = Counter(
+    "api_errors_total",
+    "Total errors by type",
+    ["error_type"]
+)
+
+
 class PredictionRequest(BaseModel):
     image_url: Optional[str] = None
     top_k: int = Field(default=5, ge=1, le=10)
@@ -43,7 +61,7 @@ class Prediction(BaseModel):
     class_name: str
     confidence: float
 
-class PredictResponse(BaseModel):
+class PredictionResponse(BaseModel):
     predictions: List[Prediction]
     inference_time_ms: float
     model_version: str
@@ -118,3 +136,83 @@ async def health_check():
     )
 
 
+@app.post("/predict", response_model=PredictionResponse)
+async def predict(file: UploadFile = File(...), top_k: int = 5, threshold: float = 0.0):
+    try:
+        # Validate input
+        if file.content_type not in ["image/jpeg", "image/png"]:
+            raise HTTPException(400, "Invalid image format")
+
+        # Read and preprocess
+        image_bytes = await file.read()
+        image = preprocess_image(image_bytes)
+
+        # Run inference
+        start_time = time.time()
+        predictions = app.state.model.predict(image, top_k=top_k)
+        inference_time = (time.time() - start_time) * 1000  # ms
+
+        # Update metrics
+        prediction_count.inc()
+
+        # Format response
+        return PredictionResponse(
+            predictions=predictions,
+            inference_time_ms=inference_time,
+            model_version="1.0.0"
+        )
+
+    except ValueError as e:
+        error_count.labels(error_type="validation").inc()
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        error_count.labels(error_type="inference").inc()
+        logger.error(f"Prediction error: {e}")
+        raise HTTPException(500, "Inference failed")
+
+
+
+
+
+
+
+
+
+def preprocess_image(image_bytes: bytes):
+    image = Image.open(io.BytesIO(image_bytes))
+
+    preprocess = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        ),
+    ])
+
+    input_tensor = preprocess(image)
+    input_batch = input_tensor.unsqueeze(0)
+    return input_batch
+
+
+def format_predictions(outputs, top_k: int):
+    
+    probabilities = F.softmax(outputs, dim=1)
+    top_probs, top_indices = torch.topk(probabilities, top_k)
+
+    predictions = []
+    for i in range(top_k):
+        predictions.append(Prediction(
+            class_id=int(top_indices[0][i]),
+            class_name=get_class_name(int(top_indices[0][i])),
+            confidence=float(top_probs[0][i])
+        ))
+
+    return predictions
+
+def get_class_name(class_id: int) -> str:
+    with open('imagenet_classes.txt', 'r') as f:
+        classes = [line.strip() for line in f.readlines()]
+
+    return classes[class_id]
