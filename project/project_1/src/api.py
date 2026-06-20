@@ -79,7 +79,7 @@ async def track_requests(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     duration = time.time() - start_time
-    logger.info(f"Request {request.method} {request.url}")
+    logger.info(f"{request.method} {request.url.path} - {response.status_code} - {duration:.3f}s")
 
     request_count.labels(
         endpoint = request.url.path,
@@ -94,6 +94,27 @@ async def track_requests(request: Request, call_next):
     return response
     
 
+@app.get("/")
+async def root():
+    return {
+        "name": "ML Model Serving API",
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs"
+    }
 
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    model_loaded = app.state.model is not None
+
+    if not model_loaded:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    return HealthResponse(
+        status="healthy",
+        model_loaded=True,
+        version="1.0.0",
+        uptime_seconds=time.time() - app.state.start_time
+    )
 
 
