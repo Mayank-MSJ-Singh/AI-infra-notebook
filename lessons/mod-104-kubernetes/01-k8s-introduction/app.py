@@ -11,8 +11,8 @@ def predict():
     prediction = float(np.sum(input_data))  # Dummy model
 
     return jsonify({
-        'prediction': prediction,
-        'model_version': 'v1.0'
+    'prediction': prediction,
+    'model_version': 'v2.0'  # Changed
     })
 
 @app.route('/health', methods=['GET'])
