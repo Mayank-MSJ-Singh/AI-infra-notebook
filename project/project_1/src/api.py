@@ -45,6 +45,23 @@ class HealthResponse(BaseModel):
 app.state.model = None
 app.state.start_time = time.time()
 
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting ML Model Serving API...")
+    try:
+        logger.info("Loading ML model...")
+        app.state.model = load_model()
+        app.state.start_time = time.time()
+        logger.info("Model loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load model: {e}")
+        raise
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("Shutting down ML Model Serving API...")
+    
+
 
 
 
