@@ -1,3 +1,5 @@
+#api.py
+
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -5,7 +7,10 @@ from typing import List, Optional
 import time
 import logging
 
-from .model import ModelInference, load_model
+try:
+    from .model import ModelInference, load_model
+except ImportError:
+    from model import ModelInference, load_model
 
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
@@ -15,7 +20,7 @@ from torchvision import transforms
 
 import torch.nn.functional as F
 
-from request import Response
+from requests import Response
 
 import torch
 
@@ -234,7 +239,7 @@ def get_class_name(class_id: int) -> str:
 
 if __name__ == "__main__":
     uvicorn.run(
-        "api:app",
+        "src.api:app",
         host="0.0.0.0",
         port=8000,
         reload=True,  # Auto-reload on code changes
