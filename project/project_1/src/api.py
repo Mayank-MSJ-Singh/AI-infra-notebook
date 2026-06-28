@@ -20,7 +20,7 @@ from torchvision import transforms
 
 import torch.nn.functional as F
 
-from requests import Response
+from starlette.responses import Response
 
 import torch
 
@@ -165,7 +165,7 @@ async def predict(file: UploadFile = File(...), top_k: int = 5, threshold: float
         inference_time = (time.time() - start_time) * 1000  # ms
 
         # Update metrics
-        prediction_count.inc()
+        prediction_count.labels(status_code=200, success="true").inc()
 
         # Format response
         return PredictionResponse(
@@ -239,9 +239,8 @@ def get_class_name(class_id: int) -> str:
 
 if __name__ == "__main__":
     uvicorn.run(
-        "src.api:app",
+        app,
         host="0.0.0.0",
         port=8000,
-        reload=True,  # Auto-reload on code changes
         log_level="info"
     )

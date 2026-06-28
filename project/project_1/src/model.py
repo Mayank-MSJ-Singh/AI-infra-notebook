@@ -110,7 +110,7 @@ class ModelInference:
             if not 1 <= top_k <= 10:
                 raise ValueError("top_k must be between 1 and 10")
 
-                    # Preprocess
+            # Preprocess
             input_batch = self.preprocess_image(image_bytes)
 
             # Inference
